@@ -26,12 +26,18 @@ const createPostElement = ({ title, link }) => {
   return postElement;
 };
 
-const feedList = document.getElementById('feed-list');
-const postList = document.getElementById('post-list');
+export default (data, type) => {
+  const createElementFunction = {
+    channel: createChannelElement,
+    post: createPostElement,
+  };
 
-export default (state) => {
-  feedList.innerHTML = '';
-  postList.innerHTML = '';
-  state.channels.forEach(channel => feedList.append(createChannelElement(channel)));
-  state.posts.forEach(post => postList.append(createPostElement(post)));
+  const listId = {
+    channel: 'feed-list',
+    post: 'post-list',
+  };
+
+  const list = document.getElementById(listId[type]);
+  list.innerHTML = '';
+  data.forEach(item => list.append(createElementFunction[type](item)));
 };
