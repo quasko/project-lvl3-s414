@@ -4,6 +4,7 @@ import axios from 'axios';
 import validator from 'validator';
 import { watch } from 'melanke-watchjs';
 import render from './render';
+import parser from './parser';
 
 export default () => {
   const state = {
@@ -42,32 +43,27 @@ export default () => {
     input.readOnly = false;
   };
 
-  const getTitle = node => node.querySelector('title').textContent;
-  const getDescription = node => node.querySelector('description').textContent;
-  const getLink = node => node.querySelector('link').textContent;
-
-  const getNodeData = node => ({
-    title: getTitle(node),
-    description: getDescription(node),
-    link: getLink(node),
-  });
-
   const parse = (url) => {
     const CORSProxy = 'https://cors.io/?';
-    const parser = new DOMParser();
 
     axios.get(`${CORSProxy}${url}`).then((response) => {
       const { data } = response;
-      const doc = parser.parseFromString(data, 'text/xml');
-      const { title, description } = getNodeData(doc);
-      const channelItems = [...doc.querySelectorAll('item')].map(getNodeData);
-      state.form.enabled = true;
+      const doc = parser(data);
+      if (!doc) {
+        state.url.valid = false;
+        state.form.enabled = true;
+        state.form.errorText = 'Invalid URL, no RSS data';
+        return;
+      }
+
+      const { title, description, channelItems } = doc;
       state.channels.push({
         title,
         description,
         url,
       });
       state.posts = state.posts.concat(channelItems);
+      state.form.enabled = true;
       state.url.value = '';
     }).catch((err) => {
       state.form.enabled = true;
@@ -129,6 +125,7 @@ export default () => {
   const onInput = (event) => {
     state.url.value = event.target.value;
     state.url.valid = true;
+    state.form.errorText = null;
   };
 
   const checkDuplicationURL = url => state.channels
@@ -149,6 +146,7 @@ export default () => {
       parse(url);
     } else {
       state.url.valid = false;
+      state.form.errorText = 'Invalid URL';
     }
   };
 
