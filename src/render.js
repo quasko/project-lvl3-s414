@@ -11,11 +11,18 @@ const createChannelElement = ({ title, description }) => {
 
 const createPostElement = ({ title, link }) => {
   const postElement = document.createElement('li');
-  postElement.classList.add('list-group-item');
+  postElement.classList.add('list-group-item', 'd-flex', 'justify-content-between', 'align-items-start');
   const postLink = document.createElement('a');
   postLink.textContent = title;
   postLink.href = link;
-  postElement.append(postLink);
+  const postDescription = document.createElement('button');
+  postDescription.type = 'button';
+  postDescription.classList.add('btn', 'btn-info', 'btn-sm');
+  postDescription.dataset.target = '#modal';
+  postDescription.dataset.toggle = 'modal';
+
+  postDescription.textContent = 'Описание';
+  postElement.append(postLink, postDescription);
   return postElement;
 };
 

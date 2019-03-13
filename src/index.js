@@ -1,5 +1,7 @@
 import '@babel/polyfill';
 import 'bootstrap/dist/css/bootstrap.min.css';
+import $ from 'jquery';
+import 'bootstrap/js/dist/modal';
 import axios from 'axios';
 import validator from 'validator';
 import WatchJS from 'melanke-watchjs';
@@ -104,3 +106,14 @@ const onSubmit = (event) => {
 
 inputURL.addEventListener('input', onInput);
 form.addEventListener('submit', onSubmit, false);
+
+const modalBody = document.querySelector('.modal-body');
+const modalTitle = document.querySelector('.modal-title');
+const findPostDescription = title => state.posts.find(post => post.title === title).description;
+
+$('#modal').on('show.bs.modal', (event) => {
+  const postTitle = event.relatedTarget.parentNode.querySelector('a').textContent;
+  const description = findPostDescription(postTitle);
+  modalTitle.textContent = postTitle;
+  modalBody.textContent = description;
+});
