@@ -3,8 +3,10 @@ import 'bootstrap/js/dist/modal';
 import axios from 'axios';
 import validator from 'validator';
 import { watch } from 'melanke-watchjs';
+import maxBy from 'lodash/maxBy';
 import render from './render';
 import parser from './parser';
+
 
 export default () => {
   const state = {
@@ -29,6 +31,8 @@ export default () => {
   const form = document.getElementById('form');
   const feedback = document.getElementById('feedback');
 
+  const updateInterval = 5000;
+
   const disableForm = () => {
     submitButton.disabled = true;
     submitButton.textContent = 'Loading...';
@@ -37,18 +41,26 @@ export default () => {
   };
 
   const enableForm = () => {
-    input.classList.remove('is-valid');
     submitButton.disabled = false;
     submitButton.textContent = 'Add';
     input.readOnly = false;
   };
 
-  const parse = (url) => {
+  const updateChannel = (channelId, currentPosts) => {
+    const channelPosts = state.posts.filter(post => post.channelId === channelId);
+    const lastOldPost = maxBy(channelPosts, post => post.pubDate);
+    const newPosts = currentPosts
+      .filter(({ pubDate }) => Date.parse(pubDate) > Date.parse(lastOldPost.pubDate));
+    state.posts = state.posts
+      .reduce((acc, post) => acc.concat({ ...post, isNew: false }), newPosts);
+  };
+
+  const parse = (url, updateChannelId = false) => {
     const CORSProxy = 'https://cors.io/?';
 
     axios.get(`${CORSProxy}${url}`).then((response) => {
       const { data } = response;
-      const doc = parser(data);
+      const doc = parser(data, updateChannelId);
       if (!doc) {
         state.url.valid = false;
         state.form.enabled = true;
@@ -56,23 +68,42 @@ export default () => {
         return;
       }
 
-      const { title, description, channelItems } = doc;
+      const {
+        title, description, channelItems, channelId,
+      } = doc;
+
+      if (updateChannelId) {
+        updateChannel(updateChannelId, channelItems);
+        setTimeout(() => {
+          parse(url, updateChannelId);
+        }, updateInterval);
+        return;
+      }
+
       state.channels.push({
+        channelId,
         title,
         description,
         url,
       });
+
       state.posts = state.posts.concat(channelItems);
+
+      setTimeout(() => {
+        parse(url, channelId);
+      }, updateInterval);
+
       state.form.enabled = true;
       state.url.value = '';
     }).catch((err) => {
+      console.log(err);
       state.form.enabled = true;
       state.form.errorText = err;
     });
   };
 
   watch(state, 'channels', () => render(state.channels, 'channel'));
-  watch(state, 'posts', () => render(state.posts, 'post'));
+  watch(state, 'posts', () => render(state.posts.filter(post => post.isNew), 'post'));
 
   watch(state, 'form', () => {
     const formState = {
@@ -93,9 +124,9 @@ export default () => {
     const modalBody = document.querySelector('.modal-body');
     const modalTitle = document.querySelector('.modal-title');
     const { modal } = state;
-    const findPostDescription = title => state.posts.find(post => post.title === title).description;
-    modalTitle.textContent = modal;
-    modalBody.textContent = findPostDescription(modal);
+
+    modalTitle.textContent = modal.title;
+    modalBody.textContent = modal.body;
   });
 
   watch(state, 'url', () => {
@@ -108,45 +139,48 @@ export default () => {
       return;
     }
 
-    if (validator.isURL(value)) {
+    if (valid) {
       input.classList.remove('is-invalid');
       input.classList.add('is-valid');
     } else {
       input.classList.remove('is-valid');
-    }
-
-    if (!valid) {
       input.classList.add('is-invalid');
-    } else {
-      input.classList.remove('is-invalid');
     }
   });
-
-  const onInput = (event) => {
-    state.url.value = event.target.value;
-    state.url.valid = true;
-    state.form.errorText = null;
-  };
 
   const checkDuplicationURL = url => state.channels
     .filter(channel => channel.url === url).length > 0;
 
-  const onSubmit = (event) => {
-    event.preventDefault();
-    const url = state.url.value;
-    if (checkDuplicationURL(url)) {
+  const onInput = (event) => {
+    const { value } = event.target;
+    state.url.value = value;
+
+    if (value === '') {
+      state.form.errorText = null;
+      return;
+    }
+    if (checkDuplicationURL(value)) {
       state.form.enabled = true;
       state.form.errorText = 'URL already added';
+      state.url.valid = false;
       return;
     }
 
-    if (validator.isURL(url)) {
-      state.form.enabled = false;
+    if (validator.isURL(value)) {
       state.url.valid = true;
-      parse(url);
+      state.form.errorText = '';
     } else {
       state.url.valid = false;
       state.form.errorText = 'Invalid URL';
+    }
+  };
+
+  const onSubmit = (event) => {
+    event.preventDefault();
+    const url = state.url.value;
+    if (validator.isURL(state.url.value)) {
+      parse(url);
+      state.form.enabled = false;
     }
   };
 
@@ -159,7 +193,13 @@ export default () => {
     const { target } = event;
     if (target.type === 'button') {
       const postTitle = target.previousSibling.textContent;
-      state.modal = postTitle;
+      const { channelId } = target.parentNode.dataset;
+      const postDescription = state.posts
+        .find(post => post.title === postTitle && post.channelId === channelId).description;
+      state.modal = {
+        title: postTitle,
+        body: postDescription,
+      };
     }
   });
 };

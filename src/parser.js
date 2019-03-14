@@ -1,12 +1,16 @@
-export default (data) => {
-  const getTitle = node => node.querySelector('title').textContent;
-  const getDescription = node => node.querySelector('description').textContent;
-  const getLink = node => node.querySelector('link').textContent;
+import uniqueId from 'lodash/uniqueId';
+
+export default (data, updateChannelId) => {
+  const getTag = (node, tag) => node.querySelector(tag).textContent;
+  const id = updateChannelId || uniqueId();
 
   const getNodeData = node => ({
-    title: getTitle(node),
-    description: getDescription(node),
-    link: getLink(node),
+    title: getTag(node, 'title'),
+    description: getTag(node, 'description'),
+    link: getTag(node, 'link'),
+    pubDate: getTag(node, 'pubDate'),
+    isNew: true,
+    channelId: id,
   });
 
   const parser = new DOMParser();
@@ -16,10 +20,11 @@ export default (data) => {
     return false;
   }
 
-  const { title, description } = getNodeData(doc);
+  const { title, description, channelId } = getNodeData(doc);
   const channelItems = [...doc.querySelectorAll('item')].map(getNodeData);
 
   return {
+    channelId,
     title,
     description,
     channelItems,

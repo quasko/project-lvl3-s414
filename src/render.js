@@ -1,3 +1,4 @@
+
 const createChannelElement = ({ title, description }) => {
   const channelElement = document.createElement('li');
   channelElement.classList.add('list-group-item');
@@ -9,9 +10,10 @@ const createChannelElement = ({ title, description }) => {
   return channelElement;
 };
 
-const createPostElement = ({ title, link }) => {
+const createPostElement = ({ channelId, title, link }) => {
   const postElement = document.createElement('li');
   postElement.classList.add('list-group-item', 'd-flex', 'justify-content-between', 'align-items-start');
+  postElement.dataset.channelId = channelId;
   const postLink = document.createElement('a');
   postLink.textContent = title;
   postLink.href = link;
@@ -38,6 +40,12 @@ export default (data, type) => {
   };
 
   const list = document.getElementById(listId[type]);
-  list.innerHTML = '';
-  data.forEach(item => list.append(createElementFunction[type](item)));
+
+  if (type !== 'post') {
+    list.innerHTML = '';
+  }
+
+  data.forEach((item) => {
+    list.prepend(createElementFunction[type](item));
+  });
 };
