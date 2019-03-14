@@ -56,7 +56,7 @@ export default () => {
   };
 
   const parse = (url, updateChannelId = false) => {
-    const CORSProxy = 'https://cors.io/?';
+    const CORSProxy = 'https://cors-anywhere.herokuapp.com/';
 
     axios.get(`${CORSProxy}${url}`).then((response) => {
       const { data } = response;
@@ -74,9 +74,6 @@ export default () => {
 
       if (updateChannelId) {
         updateChannel(updateChannelId, channelItems);
-        setTimeout(() => {
-          parse(url, updateChannelId);
-        }, updateInterval);
         return;
       }
 
@@ -89,16 +86,17 @@ export default () => {
 
       state.posts = state.posts.concat(channelItems);
 
-      setTimeout(() => {
-        parse(url, channelId);
-      }, updateInterval);
-
       state.form.enabled = true;
       state.url.value = '';
     }).catch((err) => {
       console.log(err);
       state.form.enabled = true;
       state.form.errorText = err;
+    }).finally(() => {
+      const currentChannel = state.channels.find(channel => channel.url === url);
+      setTimeout(() => {
+        parse(url, currentChannel.channelId);
+      }, updateInterval);
     });
   };
 
